@@ -16,6 +16,25 @@
       align-items: center;
     }
     .app-container { width: 100%; max-width: 410px; }
+
+    /* Header styling */
+    .header {
+      text-align: center;
+      margin-bottom: 28px;
+    }
+    .header-subtitle {
+      font-size: 0.8rem;
+      color: #a0aec0;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+    .header-title {
+      font-size: 2rem;
+      font-weight: 700;
+      color: #ffffff;
+    }
+
     .route-section { margin-bottom: 24px; }
     .route-header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
     .route-badge {
@@ -34,6 +53,7 @@
       margin-bottom: 14px;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
       border: 1px solid rgba(255, 255, 255, 0.05);
+      min-height: 60px; /* ensures consistent card height */
     }
     .station-name {
       font-size: 1.05rem;
@@ -58,15 +78,31 @@
       padding: 2px 6px;
       border-radius: 4px;
     }
-    .countdown { font-size: 0.95rem; font-weight: 600; }
+    .countdown {
+      font-size: 0.95rem;
+      font-weight: 600;
+      text-align: right; /* strict right alignment */
+      flex: 1;
+    }
     .status-urgent { color: #ffb703; animation: pulse 2s infinite; }
     .status-normal { color: #4cc9f0; }
     .status-departed { color: #a0aec0; text-decoration: line-through; opacity: 0.6; }
+    .empty-state {
+      text-align: center;
+      opacity: 0.5;
+      padding: 30px 0; /* extra breathing room */
+    }
     @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
   </style>
 </head>
 <body>
   <div class="app-container">
+    <!-- Header -->
+    <div class="header">
+      <div class="header-subtitle">Direction</div>
+      <div class="header-title">Tai Po</div>
+    </div>
+
     <!-- 72X Section -->
     <div class="route-section">
       <div class="route-header"><div class="route-badge">72X</div></div>
@@ -83,6 +119,10 @@
     <!-- 272X Section -->
     <div class="route-section">
       <div class="route-header"><div class="route-badge">272X</div></div>
+      <div class="station-card">
+        <div class="station-name">Central Park, Olympian City (MK633)</div>
+        <div id="centralPark272X"></div>
+      </div>
       <div class="station-card">
         <div class="station-name">Olympic Station (MK656)</div>
         <div id="olympic272X"></div>
@@ -110,14 +150,14 @@
         statusText = "Arriving in 1 min";
       } else {
         statusClass = "status-normal";
-        statusText = `Scheduled — in ${diffMinutes} min`;
+        statusText = `in ${diffMinutes} min`; // streamlined wording
       }
 
       return `
         <div class="departure-row">
           <div class="time-info">
             <div class="clock-time">${arrival}</div>
-            <div class="type-badge">${item.rmk_en || "Scheduled"}</div>
+            <div class="type-badge">${item.rmk_en || "Scheduled Bus"}</div>
           </div>
           <div class="countdown ${statusClass}">${statusText}</div>
         </div>
@@ -137,8 +177,8 @@
         );
 
         targetDiv.innerHTML = "";
-        if (filtered.length === 0) {
-          targetDiv.textContent = "No upcoming departures tracked";
+        if (filtered.length === 0 || filtered.every(item => !item.eta)) {
+          targetDiv.innerHTML = `<div class="empty-state">No Scheduled Departure</div>`;
         } else {
           filtered.forEach(item => {
             if (item.eta) {
@@ -153,9 +193,10 @@
     }
 
     function refreshData() {
-      fetchRoute("72X", 1, 1, "parkAve");      // Park Avenue
-      fetchRoute("72X", 1, 2, "olympic72X");  // Olympic 72X
-      fetchRoute("272X", 1, 8, "olympic272X"); // Olympic 272X
+      fetchRoute("72X", 1, 1, "parkAve");          // Park Avenue
+      fetchRoute("72X", 1, 2, "olympic72X");      // Olympic 72X
+      fetchRoute("272X", 1, 7, "centralPark272X"); // Central Park (MK633)
+      fetchRoute("272X", 1, 8, "olympic272X");    // Olympic Station (MK656)
     }
 
     refreshData();
