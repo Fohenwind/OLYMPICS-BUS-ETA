@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stylish Bus Tracker</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: #12161a;
+      color: #ffffff;
+      margin: 0;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .app-container { width: 100%; max-width: 410px; }
+    .route-section { margin-bottom: 24px; }
+    .route-header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+    .route-badge {
+      background-color: #e63946;
+      color: white;
+      font-weight: bold;
+      font-size: 1.1rem;
+      padding: 6px 14px;
+      border-radius: 20px;
+      letter-spacing: 0.5px;
+    }
+    .station-card {
+      background: #1e252b;
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 14px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .station-name {
+      font-size: 1.05rem;
+      font-weight: 600;
+      color: #ffffff;
+      margin: 0 0 14px 0;
+    }
+    .departure-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    }
+    .departure-row:last-child { border-bottom: none; }
+    .time-info { display: flex; align-items: center; gap: 8px; }
+    .clock-time { font-size: 1rem; font-weight: 500; color: #e2e8f0; }
+    .type-badge {
+      font-size: 0.75rem;
+      background-color: rgba(255, 255, 255, 0.1);
+      color: #a0aec0;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+    .countdown { font-size: 0.95rem; font-weight: 600; }
+    .status-urgent { color: #ffb703; animation: pulse 2s infinite; }
+    .status-normal { color: #4cc9f0; }
+    .status-departed { color: #a0aec0; text-decoration: line-through; opacity: 0.6; }
+    @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <!-- 72X Section -->
+    <div class="route-section">
+      <div class="route-header"><div class="route-badge">72X</div></div>
+      <div class="station-card">
+        <div class="station-name">Park Avenue Bus Terminus (MK910)</div>
+        <div id="parkAve"></div>
+      </div>
+      <div class="station-card">
+        <div class="station-name">Olympic Station (MK920)</div>
+        <div id="olympic72X"></div>
+      </div>
+    </div>
+
+    <!-- 272X Section -->
+    <div class="route-section">
+      <div class="route-header"><div class="route-badge">272X</div></div>
+      <div class="station-card">
+        <div class="station-name">Olympic Station (MK656)</div>
+        <div id="olympic272X"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function formatETA(item) {
+      const etaTime = new Date(item.eta);
+      const now = new Date();
+      const diffMinutes = Math.round((etaTime - now) / 60000);
+      const arrival = etaTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+      let statusClass = "status-normal";
+      let statusText = "";
+
+      if (diffMinutes < 0) {
+        statusClass = "status-departed";
+        statusText = `Departed (${diffMinutes}m)`;
+      } else if (diffMinutes === 0) {
+        statusClass = "status-urgent";
+        statusText = "Arriving now";
+      } else if (diffMinutes === 1) {
+        statusClass = "status-urgent";
+        statusText = "Arriving in 1 min";
+      } else {
+        statusClass = "status-normal";
+        statusText = `Scheduled — in ${diffMinutes} min`;
+      }
+
+      return `
+        <div class="departure-row">
+          <div class="time-info">
+            <div class="clock-time">${arrival}</div>
+            <div class="type-badge">${item.rmk_en || "Scheduled"}</div>
+          </div>
+          <div class="countdown ${statusClass}">${statusText}</div>
+        </div>
+      `;
+    }
+
+    async function fetchRoute(route, serviceType, seq, targetDivId) {
+      const targetDiv = document.getElementById(targetDivId);
+      try {
+        const url = `https://data.etabus.gov.hk/v1/transport/kmb/route-eta/${route}/${serviceType}`;
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`${route} ETA API error: ${response.status}`);
+        const json = await response.json();
+
+        const filtered = json.data.filter(item =>
+          item.dir === "I" && item.seq === seq
+        );
+
+        targetDiv.innerHTML = "";
+        if (filtered.length === 0) {
+          targetDiv.textContent = "No upcoming departures tracked";
+        } else {
+          filtered.forEach(item => {
+            if (item.eta) {
+              targetDiv.innerHTML += formatETA(item);
+            }
+          });
+        }
+      } catch (err) {
+        targetDiv.textContent = "Error: " + err.message;
+        console.error(err);
+      }
+    }
+
+    function refreshData() {
+      fetchRoute("72X", 1, 1, "parkAve");      // Park Avenue
+      fetchRoute("72X", 1, 2, "olympic72X");  // Olympic 72X
+      fetchRoute("272X", 1, 8, "olympic272X"); // Olympic 272X
+    }
+
+    refreshData();
+    setInterval(refreshData, 30000);
+  </script>
+</body>
+</html>
